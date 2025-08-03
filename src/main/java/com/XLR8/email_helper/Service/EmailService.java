@@ -4,9 +4,13 @@ import com.XLR8.email_helper.Entity.Email;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class EmailService {
@@ -26,24 +30,26 @@ public class EmailService {
     public Mono<String> generateEmailReply(Email email) {
         String prompt = buildPrompt(email);
 
-        String requestBody = String.format("""
-            {
-              "model": "sonar",
-              "messages": [
-                {"role": "user", "content": "%s"}
-              ]
-            }
-            """, escapeJson(prompt));
-
+        // Build the request body as a Map
+        Map<String, Object> requestBody = Map.of(
+                "model", "sonar",
+                "messages", List.of(
+                        Map.of(
+                                "role", "user",
+                                "content", prompt
+                        )
+                )
+        );
         return webClient.post()
                 .uri("/chat/completions")
                 .header("Authorization", "Bearer " + apiKey)
-                .header("Content-Type", "application/json")
+                .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(String.class)
                 .map(this::extractResponseContent);
     }
+
 
     private String extractResponseContent(String response) {
         try {
